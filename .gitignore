@@ -12,8 +12,6 @@ venv/
 # VS Code settings
 .vscode/
 
-# Alembic cache
-
 
 # Node modules & frontend artifacts
 node_modules/
@@ -62,4 +60,5 @@ yarn-error.log*
 !.env.example
 
 # Secrets
-*.json 
+*.json
+!package-lock.json
