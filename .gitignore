@@ -61,4 +61,5 @@ yarn-error.log*
 
 # Secrets
 *.json
+!package.json
 !package-lock.json
