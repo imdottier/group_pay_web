@@ -78,9 +78,10 @@ app = FastAPI(
 
 # --- CORS Middleware Configuration ---
 origins = [
-    settings.FRONTEND_URL,
+    "https://group-pay-web.vercel.app",
     "http://localhost:3000",
 ]
+print("Allowed origins:", origins)
 
 app.add_middleware(
     CORSMiddleware,
