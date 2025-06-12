@@ -3,45 +3,13 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
-import { User, GroupMember, InitialPayer } from '@/types';
+import { User, GroupMember, InitialPayer, Bill, BillPart, BillItemSplit, BillItem } from '@/types';
 import BillInfoModal from './BillInfoModal';
 import { formatCurrency } from '@/lib/utils';
 import { XMarkIcon, CameraIcon } from '@heroicons/react/24/outline';
 import { toast } from 'sonner';
 
 type SplitMethod = 'equal' | 'exact' | 'item';
-
-interface BillPart {
-  user: User;
-  amount_owed: string;
-}
-
-interface BillItemSplit {
-  user: User;
-  quantity: number;
-}
-
-interface PreviewBillItem {
-  item_id: number;
-  name: string;
-  unit_price: number;
-  quantity: number;
-  bill_item_splits: BillItemSplit[];
-}
-
-interface Bill {
-  bill_id: number;
-  title: string;
-  description?: string;
-  total_amount: number;
-  created_by: number;
-  bill_creator: User;
-  created_at: string;
-  split_method: SplitMethod;
-  initial_payments: { user: User; amount_paid: string }[];
-  bill_parts: BillPart[];
-  items: PreviewBillItem[];
-}
 
 interface BillCategory {
     category_id: number;
@@ -51,14 +19,6 @@ interface BillCategory {
 interface ItemAssignment {
   user_id: number;
   quantity: number;
-}
-
-interface BillItem {
-  id: number;
-  name: string;
-  unit_price: number;
-  quantity: number;
-  assignments: ItemAssignment[];
 }
 
 interface ExactSplit {
@@ -80,6 +40,15 @@ interface ParsedReceiptData {
 
 interface CreateBillFormProps {
   groupId: string;
+}
+
+// Add a local interface for editable bill items
+interface EditableBillItem {
+  id: number;
+  name: string;
+  unit_price: number;
+  quantity: number;
+  assignments: ItemAssignment[];
 }
 
 const CreateBillForm = ({ groupId }: CreateBillFormProps) => {
@@ -105,8 +74,8 @@ const CreateBillForm = ({ groupId }: CreateBillFormProps) => {
   const [newCategoryName, setNewCategoryName] = useState('');
 
   const [initialPayers, setInitialPayers] = useState<InitialPayer[]>([{ user_id: 0, amount_paid: '' as any }]);
-  const [items, setItems] = useState<BillItem[]>([
-    { id: Date.now(), name: '', unit_price: '' as any, quantity: 1, assignments: [] }
+  const [items, setItems] = useState<EditableBillItem[]>([
+    { id: Date.now(), name: '', unit_price: 0, quantity: 1, assignments: [] }
   ]);
   const [exactSplits, setExactSplits] = useState<ExactSplit[]>([]);
   const [splitParticipants, setSplitParticipants] = useState<number[]>([]);
@@ -199,10 +168,10 @@ const CreateBillForm = ({ groupId }: CreateBillFormProps) => {
 
   const handleAddItem = () => {
     const newAssignments = groupMembers.map(m => ({ user_id: m.user.user_id, quantity: 0 }));
-    setItems([...items, { id: Date.now(), name: '', unit_price: '' as any, quantity: 1, assignments: newAssignments }]);
+    setItems([...items, { id: Date.now(), name: '', unit_price: 0, quantity: 1, assignments: newAssignments }]);
   };
 
-  const handleItemChange = (index: number, field: keyof Omit<BillItem, 'id' | 'assignments'>, value: string) => {
+  const handleItemChange = (index: number, field: keyof Omit<EditableBillItem, 'id' | 'assignments'>, value: string) => {
     const updatedItems = [...items];
     const item = { ...updatedItems[index] };
     if (field === 'name') {

@@ -8,14 +8,9 @@ import { formatCurrency, roundToNearest500, get_user_role } from '@/lib/utils';
 import BillInfoModal from '@/components/bills/BillInfoModal';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import { Dialog, Transition } from '@headlessui/react';
+import { User, Bill } from '@/types';
 
 // --- INTERFACES ---
-interface User {
-  user_id: number;
-  full_name: string | null;
-  email: string;
-  username: string;
-}
 interface UserBase { 
   user_id: number;
   username: string;
@@ -47,21 +42,6 @@ interface BillPartWithAmount {
   user_id: number;
   percentage: number;
   amount_owed: number;
-}
-interface Bill {
-  bill_id: number;
-  group_id: number;
-  created_by: number;
-  created_at: string;
-  title: string;
-  description?: string;
-  total_amount: number;
-  split_method: 'equal' | 'exact' | 'item';
-  initial_payments: InitialPayment[];
-  items: BillItem[];
-  bill_parts: BillPart[];
-  split_summary_percentage: BillPartWithAmount[];
-  bill_creator: User;
 }
 interface UserNetBalance {
   user_id: number;

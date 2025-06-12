@@ -4,14 +4,7 @@ import { useEffect, useState } from 'react';
 import api from '@/lib/api';
 import { XMarkIcon, ArrowUpCircleIcon, ArrowDownCircleIcon, TrashIcon } from '@heroicons/react/24/outline';
 import { toast } from 'sonner';
-
-interface User {
-  user_id: number;
-  username: string;
-  full_name: string;
-  email: string;
-  profile_image_url?: string;
-}
+import { User } from '@/types';
 
 type GroupRole = "owner" | "admin" | "member";
 

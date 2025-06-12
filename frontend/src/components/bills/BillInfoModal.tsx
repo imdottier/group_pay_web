@@ -4,15 +4,9 @@ import { Fragment } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import { formatCurrency } from '@/lib/utils';
+import { User, Bill } from '@/types';
 
 // --- Local Type Definitions ---
-interface User {
-  user_id: number;
-  full_name: string | null;
-  email: string;
-  username: string;
-}
-
 interface BillPart {
   user: User;
   amount_owed: string;
@@ -34,20 +28,6 @@ interface BillItem {
 interface InitialPayment {
   user: User;
   amount_paid: string;
-}
-
-interface Bill {
-  bill_id: number;
-  title: string;
-  description?: string;
-  total_amount: number;
-  created_by: number;
-  bill_creator: User;
-  created_at: string;
-  split_method: 'equal' | 'exact' | 'item';
-  initial_payments: InitialPayment[];
-  bill_parts: BillPart[];
-  items: BillItem[];
 }
 
 interface BillInfoModalProps {
