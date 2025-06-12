@@ -53,7 +53,7 @@ export default function AuthenticatedLayout({ children }: { children: React.Reac
         {children}
       </main>
       <footer className="bg-gray-100 text-center p-4 text-sm text-gray-600">
-        © 2024 Group Expense Tracker
+        © Group Expense Tracker
       </footer>
     </div>
   );

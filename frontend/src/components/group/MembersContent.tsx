@@ -6,16 +6,9 @@ import { PlusCircleIcon, UserIcon } from '@heroicons/react/24/outline';
 import InviteMemberModal from './InviteMemberModal';
 import UserProfileModal from '@/components/user/UserProfileModal';
 import { formatCurrency } from '@/lib/utils';
+import { User } from '@/types';
 
 // --- Interfaces ---
-interface User {
-  user_id: number;
-  username: string;
-  email?: string;
-  full_name?: string;
-  profile_image_url?: string;
-}
-
 type GroupRole = "owner" | "admin" | "member";
 
 interface GroupMember {

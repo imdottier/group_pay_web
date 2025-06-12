@@ -1,6 +1,8 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
+import { useMemo, useState } from 'react';
+import useSWR from 'swr';
+import { BareFetcher } from 'swr';
 import api from '@/lib/api';
 import { ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
 import { formatCurrency } from '@/lib/utils';
@@ -26,10 +28,13 @@ interface Payment {
   payee?: User; // Optional nested user details
 }
 
+interface MemberResponse {
+  user: User;
+  role: string;
+}
+
 interface PaymentsContentProps {
   groupId: string;
-  initialPayments?: Payment[];
-  initialHasMore?: boolean;
 }
 
 const ITEMS_PER_PAGE = 20;
@@ -37,25 +42,7 @@ const ITEMS_PER_PAGE = 20;
 type SortOption = 'created_at-desc' | 'amount-desc' | 'amount-asc';
 type FilterType = 'all' | 'involving' | 'from_member' | 'to_member' | 'between';
 
-// --- In-memory cache for payments ---
-const paymentsCache = new Map<string, { payments: Payment[], hasMore: boolean }>();
-
-// --- Helper to fetch members, with its own cache ---
-const membersCache = new Map<string, User[]>();
-const fetchGroupMembers = async (groupId: string): Promise<User[]> => {
-    if (membersCache.has(groupId)) {
-        return membersCache.get(groupId)!;
-    }
-    try {
-        const response = await api.get<any[]>(`/groups/${groupId}/members`);
-        const members = response.data.map(m => m.user);
-        membersCache.set(groupId, members);
-        return members;
-    } catch (error) {
-        console.error("Failed to fetch group members", error);
-        return []; // Return empty on error
-    }
-};
+const fetcher: BareFetcher<any> = (url: string) => api.get(url).then(res => res.data);
 
 const formatDate = (dateString?: string | null) => {
   if (!dateString) return 'N/A';
@@ -68,89 +55,38 @@ const formatDate = (dateString?: string | null) => {
   }
 };
 
-const PaymentsContent: React.FC<PaymentsContentProps> = ({ groupId, initialPayments, initialHasMore }) => {
-  const [payments, setPayments] = useState<Payment[]>(initialPayments || []);
+const PaymentsContent: React.FC<PaymentsContentProps> = ({ groupId }) => {
   const [currentPage, setCurrentPage] = useState(1);
-  const [isLoading, setIsLoading] = useState(!initialPayments);
-  const [error, setError] = useState<string | null>(null);
-  const [hasMore, setHasMore] = useState(initialHasMore ?? true);
   const [sortOption, setSortOption] = useState<SortOption>('created_at-desc');
-
-  // New state for filtering
   const [filterType, setFilterType] = useState<FilterType>('all');
-  const [groupMembers, setGroupMembers] = useState<User[]>([]);
   const [memberA, setMemberA] = useState<number | null>(null);
   const [memberB, setMemberB] = useState<number | null>(null);
 
-  useEffect(() => {
-    fetchGroupMembers(groupId).then(setGroupMembers);
-  }, [groupId]);
-
-  useEffect(() => {
-      const fetchPayments = async () => {
-        setIsLoading(true);
-          setError(null);
-      
-      const [sortBy, sortOrder] = sortOption.split('-');
-      const cacheKey = `payments-${groupId}-p${currentPage}-s${sortOption}-f${filterType}-a${memberA}-b${memberB}`;
-
-      if (paymentsCache.has(cacheKey)) {
-        const cached = paymentsCache.get(cacheKey)!;
-        setPayments(cached.payments);
-        setHasMore(cached.hasMore);
-        setIsLoading(false);
-        return;
-      }
-
-      const params: any = {
-          skip: (currentPage - 1) * ITEMS_PER_PAGE,
-          limit: ITEMS_PER_PAGE,
-          sort_by: sortBy,
-          sort_order: sortOrder,
-          filter_type: filterType,
-      };
-
-      if (memberA) params.member_a_id = memberA;
-      if (memberB && filterType === 'between') params.member_b_id = memberB;
-
-
-      try {
-        const response = await api.get<Payment[]>('/groups/' + groupId + '/payments', { params });
-        const fetchedPayments = response.data;
-        const newHasMore = fetchedPayments.length === ITEMS_PER_PAGE;
-        
-        setPayments(fetchedPayments);
-        setHasMore(newHasMore);
-        paymentsCache.set(cacheKey, { payments: fetchedPayments, hasMore: newHasMore });
-
-      } catch (err: any) {
-        setError(err.response?.data?.detail || 'Failed to fetch payments.');
-        console.error(err);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-      fetchPayments();
+  const { data: membersData, error: membersError } = useSWR<MemberResponse[]>(`/groups/${groupId}/members`, fetcher);
+  const groupMembers = useMemo(() => membersData?.map(m => m.user) || [], [membersData]);
+  
+  const [sortBy, sortOrder] = sortOption.split('-');
+  const paymentsApiUrl = useMemo(() => {
+    const params = new URLSearchParams({
+      skip: ((currentPage - 1) * ITEMS_PER_PAGE).toString(),
+      limit: ITEMS_PER_PAGE.toString(),
+      sort_by: sortBy,
+      sort_order: sortOrder,
+      filter_type: filterType,
+    });
+    if (memberA) params.set('member_a_id', memberA.toString());
+    if (memberB && filterType === 'between') params.set('member_b_id', memberB.toString());
+    return `/groups/${groupId}/payments?${params.toString()}`;
   }, [currentPage, groupId, sortOption, filterType, memberA, memberB]);
 
-  const handleNextPage = () => {
-    if (hasMore) {
-        setCurrentPage(prev => prev + 1);
-    }
-  };
+  const { data: payments = [], error, isLoading } = useSWR<Payment[]>(paymentsApiUrl, fetcher);
 
-  const handlePrevPage = () => {
-    setCurrentPage(prev => Math.max(prev - 1, 1));
-  };
+  const hasMore = payments.length === ITEMS_PER_PAGE;
 
   const resetAndFetch = () => {
     setCurrentPage(1);
-    setPayments([]);
-    setHasMore(true);
-    paymentsCache.clear();
   };
-
+  
   const handleSortChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     setSortOption(e.target.value as SortOption);
     resetAndFetch();
@@ -164,15 +100,13 @@ const PaymentsContent: React.FC<PaymentsContentProps> = ({ groupId, initialPayme
   };
   
   const handleMemberAChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const value = e.target.value ? Number(e.target.value) : null;
-    setMemberA(value);
-    setMemberB(null); // Reset B if A changes
+    setMemberA(e.target.value ? Number(e.target.value) : null);
+    setMemberB(null);
     resetAndFetch();
   };
 
   const handleMemberBChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const value = e.target.value ? Number(e.target.value) : null;
-    setMemberB(value);
+    setMemberB(e.target.value ? Number(e.target.value) : null);
     resetAndFetch();
   };
 
@@ -279,24 +213,24 @@ const PaymentsContent: React.FC<PaymentsContentProps> = ({ groupId, initialPayme
           )}
 
           <div className="mt-6 flex justify-center items-center space-x-4">
-            <button
-              onClick={handlePrevPage}
-              disabled={currentPage === 1 || isLoading}
-              className="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
-            >
-              <ChevronLeftIcon className="h-5 w-5" />
-            </button>
-            <span className="text-sm text-gray-700">
-              Page {currentPage}
-            </span>
-            <button
-              onClick={handleNextPage}
-              disabled={!hasMore || isLoading}
-              className="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
-            >
-              <ChevronRightIcon className="h-5 w-5" />
-            </button>
-          </div>
+              <button
+                onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                disabled={currentPage === 1 || isLoading}
+                className="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
+              >
+                <ChevronLeftIcon className="h-5 w-5" /> Previous
+              </button>
+              <span className="text-sm text-gray-700">
+                Page {currentPage}
+              </span>
+              <button
+                onClick={() => setCurrentPage(prev => prev + 1)}
+                disabled={!hasMore || isLoading}
+                className="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
+              >
+                Next <ChevronRightIcon className="h-5 w-5" />
+              </button>
+            </div>
         </>
       )}
     </div>

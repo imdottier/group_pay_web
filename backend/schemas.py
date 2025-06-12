@@ -503,7 +503,7 @@ class UserToUserBalance(BaseModel):
 
     
 class Notification(BaseModel):
-    notification_id: int
+    id: int
     recipient_user_id: int
     message: str
     is_read: bool
@@ -513,7 +513,9 @@ class Notification(BaseModel):
     related_group_id: Optional[int] = None
     related_bill_id: Optional[int] = None
     related_payment_id: Optional[int] = None
-    related_user_id: Optional[User] = None
+    related_user_id: Optional[int] = None
+
+    recipient: Optional[User] = None
 
     class Config:
         from_attributes = True
@@ -663,3 +665,20 @@ class SpendingByCategory(BaseModel):
 # Update forward references
 Group.model_rebuild()
 Bill.model_rebuild()
+
+class UserFinancialBar(BaseModel):
+    user_id: int
+    username: str
+    total_paid_out: Decimal
+    total_owed_share: Decimal
+    net_amount: Decimal
+
+    class Config:
+        from_attributes = True
+
+class GroupFinancialBarSummary(BaseModel):
+    group_id: int
+    bars: list[UserFinancialBar]
+
+    class Config:
+        from_attributes = True

@@ -3,6 +3,9 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useState } from 'react';
+import NotificationsPanel from './NotificationsPanel';
+import useSWR from 'swr';
+import api from '../lib/api';
 
 // Placeholder icons (replace with actual icons later)
 const BellIcon = () => <span>🔔</span>;
@@ -12,7 +15,11 @@ const TopNavbar = () => {
     const router = useRouter();
     const pathname = usePathname();
     const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
-    const [isNotificationDropdownOpen, setIsNotificationDropdownOpen] = useState(false);
+    const [showNotifications, setShowNotifications] = useState(false);
+    const { data: unreadCount, mutate: mutateUnread } = useSWR<{ unread_count: number }>(
+      '/notifications/me/unread-count',
+      (url: string) => api.get(url).then((res: any) => res.data)
+    );
 
     const handleLogout = () => {
         if (typeof window !== 'undefined') {
@@ -55,16 +62,17 @@ const TopNavbar = () => {
                     {/* Notification Icon & Dropdown */}
                     <div className="relative">
                         <button
-                            onClick={() => setIsNotificationDropdownOpen(!isNotificationDropdownOpen)}
-                            className="hover:text-gray-300 focus:outline-none p-2"
+                            onClick={() => setShowNotifications(true)}
+                            className="hover:text-gray-300 focus:outline-none p-2 relative"
                         >
                             <BellIcon />
+                            {unreadCount && unreadCount.unread_count > 0 && (
+                              <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full px-1.5 py-0.5 font-bold">
+                                {unreadCount.unread_count}
+                              </span>
+                            )}
                         </button>
-                        {isNotificationDropdownOpen && (
-                            <div className="absolute right-0 mt-2 w-48 bg-white text-black rounded-md shadow-lg py-1 z-50">
-                                <p className="px-4 py-2 text-sm text-gray-700">No new notifications</p>
-                            </div>
-                        )}
+                        <NotificationsPanel open={showNotifications} onClose={() => setShowNotifications(false)} onNotificationRead={mutateUnread} />
                     </div>
 
                     {/* Profile Icon & Dropdown */}

@@ -102,9 +102,18 @@ const InviteMemberModal = ({ isOpen, onClose, groupId }: InviteMemberModalProps)
           {searchResults.map((user) => (
             <div key={user.user_id} className="p-2 border-b border-gray-200">
                 <div className="flex items-center justify-between">
-                    <div>
-                        <p className="font-semibold text-gray-800">{user.username}</p>
-                        <p className="text-sm text-gray-600">{user.email}</p>
+                    <div className="flex items-center space-x-3">
+                        {user.profile_image_url ? (
+                            <img src={user.profile_image_url} alt={user.username} className="w-10 h-10 rounded-full object-cover" />
+                        ) : (
+                            <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center">
+                                <span className="text-gray-500 font-semibold">{user.username.charAt(0).toUpperCase()}</span>
+                            </div>
+                        )}
+                        <div>
+                            <p className="font-semibold text-gray-800">{user.username}</p>
+                            <p className="text-sm text-gray-600">{user.email}</p>
+                        </div>
                     </div>
                     <button
                         onClick={() => handleInvite(user.user_id)}

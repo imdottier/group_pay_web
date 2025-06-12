@@ -14,6 +14,8 @@ ASYNC_SQLALCHEMY_DATABASE_URL = os.getenv("ASYNC_SQLALCHEMY_DATABASE_URL")
 if not ASYNC_SQLALCHEMY_DATABASE_URL:
     raise ValueError("ASYNC_SQLALCHEMY_DATABASE_URL environment variable is not set")
 
+print(ASYNC_SQLALCHEMY_DATABASE_URL)
+
 # Engine for asynchronous operations
 try:
     engine = create_async_engine(

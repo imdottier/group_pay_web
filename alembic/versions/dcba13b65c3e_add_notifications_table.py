@@ -27,7 +27,7 @@ def upgrade() -> None:
     sa.Column('message', sa.Text(), nullable=False),
     sa.Column('is_read', sa.Boolean(), nullable=False),
     sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=True),
-    sa.Column('notification_type', sa.Enum('GROUP_INVITE', 'NEW_BILL', 'BILL_UPDATE', 'MEMBER_ADDED_TO_GROUP', name='notificationtype'), nullable=True),
+    sa.Column('notification_type', sa.Enum('group_invite', 'new_bill', 'bill_update', 'member_added_to_group', name='notificationtype'), nullable=True),
     sa.Column('related_group_id', sa.Integer(), nullable=True),
     sa.Column('related_bill_id', sa.Integer(), nullable=True),
     sa.Column('related_payment_id', sa.Integer(), nullable=True),

@@ -287,14 +287,14 @@ class Transaction(Base):
 
 
 class NotificationType(PyEnum): # Optional: If you want to categorize notifications
-    GROUP_INVITE = "group_invite"
-    NEW_BILL = "new_bill"
-    BILL_UPDATE = "bill_update"
-    MEMBER_ADDED_TO_GROUP = "member_added_to_group"
-    FRIEND_REQUEST = "friend_request"
-    FRIEND_REQUEST_ACCEPTED = "friend_request_accepted"
-    BILL_PAYMENT_REMINDER = "payment_reminder"
-    TRANSACTION_REMINDER = "transaction_reminder"
+    group_invite = "group_invite"
+    new_bill = "new_bill"
+    bill_update = "bill_update"
+    member_added_to_group = "member_added_to_group"
+    friend_request = "friend_request"
+    friend_request_accepted = "friend_request_accepted"
+    bill_payment_reminder = "payment_reminder"
+    transaction_reminder = "transaction_reminder"
     # ... add more types as needed
 
 class Notification(Base):

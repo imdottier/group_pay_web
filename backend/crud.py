@@ -16,7 +16,7 @@ from backend.models import (
     AuditActionType, Friendship, FriendshipStatus, GroupInvitation, GroupInvitationStatus
 )
 import backend.schemas as schemas
-from backend.schemas import UserBase, UserCreate, GroupCreate, BillCreate, PaymentCreate, TransactionCategoryCreate, TransactionCreate, SuggestedPayment, TransactionCategoryUpdate, FriendshipCreate, FriendshipUpdate, GroupInvitationCreate, GroupInvitationUpdate, BillUpdate
+from backend.schemas import UserBase, UserCreate, GroupCreate, BillCreate, PaymentCreate, TransactionCategoryCreate, TransactionCreate, SuggestedPayment, TransactionCategoryUpdate, FriendshipCreate, FriendshipUpdate, GroupInvitationCreate, GroupInvitationUpdate, BillUpdate, GroupFinancialBarSummary, UserFinancialBar
 from backend.security import get_password_hash, verify_password
 
 logger = logging.getLogger(__name__)
@@ -130,6 +130,32 @@ async def create_user(db: AsyncSession, user: UserCreate) -> User:
         except Exception:
             pass # Ignore rollback error
         raise e
+
+
+async def create_user_from_google(db: AsyncSession, user_info: dict) -> User:
+    """Creates a new user from Google OAuth user info."""
+    db_user = User(
+        email=user_info['email'],
+        google_id=user_info['sub'], # 'sub' is the standard field for the unique user ID
+        full_name=user_info.get('name'),
+        username=user_info.get('email').split('@')[0], # Default username from email
+        profile_image_url=user_info.get('picture')
+        # No password, as they will authenticate via Google
+    )
+    try:
+        db.add(db_user)
+        await db.commit()
+        await db.refresh(db_user)
+        return db_user
+    except IntegrityError:
+        await db.rollback()
+        # This could happen in a race condition if two callbacks happen at once.
+        # We can try to fetch the user again.
+        return await get_user_by_email(db, email=user_info['email'])
+    except Exception as e:
+        await db.rollback()
+        logger.error(f"Error creating user from Google: {e}")
+        raise
 
 
 async def authenticate_user(db: AsyncSession, identifier: str, password: str) -> User | None:    
@@ -1672,15 +1698,7 @@ async def calculate_all_balances_for_user_in_group(
 
 async def create_friendship(db: AsyncSession, friendship_in: FriendshipCreate, requester_id: int) -> Friendship:
     if requester_id == friendship_in.addressee_id:
-        raise ValueError("Cannot create a friendship with oneself.")
-    
-    # Check for existing friendship/request
-    existing = await get_friendship_by_users(db, user_id_1=requester_id, user_id_2=friendship_in.addressee_id)
-    if existing:
-        if existing.status == FriendshipStatus.accepted:
-            raise IntegrityError("Users are already friends.", params=None, orig=None)
-        elif existing.status == FriendshipStatus.pending:
-            raise IntegrityError("A friend request is already pending.", params=None, orig=None)
+        raise ValueError("Cannot send a friend request to oneself.")
 
     db_friendship = Friendship(
         requester_id=requester_id,
@@ -1688,11 +1706,12 @@ async def create_friendship(db: AsyncSession, friendship_in: FriendshipCreate, r
         status=FriendshipStatus.pending
     )
     db.add(db_friendship)
+    await db.flush()
+    await db.refresh(db_friendship, attribute_names=['requester', 'addressee'])
     return db_friendship
 
 
 async def get_friendship_by_users(db: AsyncSession, user_id_1: int, user_id_2: int) -> Friendship | None:
-    """Gets a friendship record between two users, regardless of who is requester/addressee."""
     stmt = (
         select(Friendship)
         .where(
@@ -1707,7 +1726,7 @@ async def get_friendship_by_users(db: AsyncSession, user_id_1: int, user_id_2: i
         )
     )
     result = await db.execute(stmt)
-    return result.scalar_one_or_none()
+    return result.scalars().first()
 
 
 async def can_send_friend_request(db: AsyncSession, user_id_1: int, user_id_2: int) -> bool:
@@ -1723,39 +1742,51 @@ async def can_send_friend_request(db: AsyncSession, user_id_1: int, user_id_2: i
 
 
 async def get_friendships_for_user(db: AsyncSession, user_id: int) -> list[Friendship]:
-    """Gets all friendships (accepted) for a given user."""
-    stmt = select(Friendship).where(
-        (Friendship.requester_id == user_id) | (Friendship.addressee_id == user_id),
-        Friendship.status == FriendshipStatus.accepted
-    ).options(
-        joinedload(Friendship.requester),
-        joinedload(Friendship.addressee)
+    stmt = (
+        select(Friendship)
+        .filter(
+            or_(Friendship.requester_id == user_id, Friendship.addressee_id == user_id),
+            Friendship.status == FriendshipStatus.accepted
+        )
+        .options(
+            joinedload(Friendship.requester),
+            joinedload(Friendship.addressee)
+        )
+        .order_by(Friendship.created_at.desc())
     )
     result = await db.execute(stmt)
     return result.scalars().all()
 
 
 async def get_received_pending_friend_requests(db: AsyncSession, user_id: int) -> list[Friendship]:
-    """Gets all pending friend requests for a given user (where they are the addressee)."""
-    stmt = select(Friendship).where(
-        (Friendship.addressee_id == user_id),
-        Friendship.status == FriendshipStatus.pending
-    ).options(
-        joinedload(Friendship.requester),
-        joinedload(Friendship.addressee)
+    stmt = (
+        select(Friendship)
+        .filter(
+            Friendship.addressee_id == user_id,
+            Friendship.status == FriendshipStatus.pending
+        )
+        .options(
+            joinedload(Friendship.requester),
+            joinedload(Friendship.addressee)
+        )
+        .order_by(Friendship.created_at.desc())
     )
     result = await db.execute(stmt)
     return result.scalars().all()
 
 
 async def get_sent_pending_friend_requests(db: AsyncSession, user_id: int) -> list[Friendship]:
-    """Gets all pending friend requests sent by a given user (where they are the requester)."""
-    stmt = select(Friendship).where(
-        (Friendship.requester_id == user_id),
-        Friendship.status == FriendshipStatus.pending
-    ).options(
-        joinedload(Friendship.requester),
-        joinedload(Friendship.addressee)
+    stmt = (
+        select(Friendship)
+        .filter(
+            Friendship.requester_id == user_id,
+            Friendship.status == FriendshipStatus.pending
+        )
+        .options(
+            joinedload(Friendship.requester),
+            joinedload(Friendship.addressee)
+        )
+        .order_by(Friendship.created_at.desc())
     )
     result = await db.execute(stmt)
     return result.scalars().all()
@@ -1767,8 +1798,8 @@ async def update_friendship(db: AsyncSession, db_friendship: Friendship, friends
     # Declining is handled by delete_friendship.
     if friendship_up.status == FriendshipStatus.accepted:
         db_friendship.status = FriendshipStatus.accepted
-        db.add(db_friendship) # Add to session to track changes
         await db.flush()
+    await db.refresh(db_friendship, attribute_names=['requester', 'addressee'])
     return db_friendship
 
 
@@ -2047,3 +2078,50 @@ async def get_spending_by_category_for_group(
             category_results.append(("Uncategorized", uncategorized_total))
 
     return category_results
+
+async def calculate_group_financial_bar_summary(db: AsyncSession, group_id: int) -> GroupFinancialBarSummary:
+    from decimal import Decimal
+    member_schemas = await get_group_member_ids_and_names(db=db, group_id=group_id)
+    member_ids = [member.user_id for member in member_schemas]
+    member_names = {member.user_id: member.username for member in member_schemas}
+    if not member_ids:
+        return GroupFinancialBarSummary(group_id=group_id, bars=[])
+    
+    net_balances: dict[int, Decimal] = {user_id: Decimal("0.00") for user_id in member_ids}
+    total_paid_out: dict[int, Decimal] = {user_id: Decimal("0.00") for user_id in member_ids}
+    total_owed_share: dict[int, Decimal] = {user_id: Decimal("0.00") for user_id in member_ids}
+
+    bills = await get_group_bills(db=db, group_id=group_id, limit=1000)
+    for bill in bills:
+        # Subtract initial payments (paid out)
+        for initial_payment in bill.initial_payments:
+            if initial_payment.user_id in net_balances:
+                net_balances[initial_payment.user_id] -= initial_payment.amount_paid
+                total_paid_out[initial_payment.user_id] += initial_payment.amount_paid
+        # Find all participants
+        bill_participant_ids = {part.user_id for part in bill.bill_parts}
+        for item in bill.items:
+            for split in item.bill_item_splits:
+                bill_participant_ids.add(split.user_id)
+        # Add owed shares
+        for user_id in bill_participant_ids:
+            if user_id in net_balances:
+                amount_owed = await calculate_user_owed_for_bill(bill=bill, user_id=user_id)
+                if amount_owed > Decimal("0.00"):
+                    net_balances[user_id] += amount_owed
+                    total_owed_share[user_id] += amount_owed
+    # Payments
+    payments = await get_group_payments(db=db, group_id=group_id, limit=1000)
+    for payment in payments:
+        if payment.payer_id in net_balances:
+            net_balances[payment.payer_id] -= payment.amount
+        if payment.payee_id in net_balances:
+            net_balances[payment.payee_id] += payment.amount
+    bars = [UserFinancialBar(
+        user_id=uid,
+        username=member_names.get(uid, f"User {uid}"),
+        total_paid_out=total_paid_out[uid],
+        total_owed_share=total_owed_share[uid],
+        net_amount=net_balances[uid],
+    ) for uid in member_ids]
+    return GroupFinancialBarSummary(group_id=group_id, bars=bars)

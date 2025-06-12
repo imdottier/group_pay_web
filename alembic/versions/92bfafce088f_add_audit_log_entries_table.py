@@ -25,7 +25,7 @@ def upgrade() -> None:
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('timestamp', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
     sa.Column('actor_user_id', sa.Integer(), nullable=True),
-    sa.Column('action_type', sa.Enum('BILL_CREATED', 'BILL_UPDATED', 'BILL_DELETED', 'PAYMENT_CREATED', 'PAYMENT_UPDATED', 'PAYMENT_DELETED', 'MEMBER_INVITED', 'MEMBER_JOINED', 'MEMBER_LEFT', 'MEMBER_REMOVED', 'MEMBER_ROLE_UPDATED', 'GROUP_CREATED', 'GROUP_DETAILS_UPDATED', name='auditactiontype'), nullable=False),
+    sa.Column('action_type', sa.Enum('BILL_CREATED', 'bill_updateD', 'BILL_DELETED', 'PAYMENT_CREATED', 'PAYMENT_UPDATED', 'PAYMENT_DELETED', 'MEMBER_INVITED', 'MEMBER_JOINED', 'MEMBER_LEFT', 'MEMBER_REMOVED', 'MEMBER_ROLE_UPDATED', 'GROUP_CREATED', 'GROUP_DETAILS_UPDATED', name='auditactiontype'), nullable=False),
     sa.Column('group_id', sa.Integer(), nullable=True),
     sa.Column('target_bill_id', sa.Integer(), nullable=True),
     sa.Column('target_payment_id', sa.Integer(), nullable=True),

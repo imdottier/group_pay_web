@@ -6,7 +6,7 @@ load_dotenv()
 
 class Settings:
     # Database Configuration
-    DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://user:password@hostname/database")
+    DATABASE_URL = os.getenv("ASYNC_SQLALCHEMY_DATABASE_URL")
 
     # JWT Authentication
     SECRET_KEY = os.getenv("SECRET_KEY", "a_very_secret_key")
@@ -21,5 +21,7 @@ class Settings:
     # Google Generative AI Configuration
     GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 
+    # Frontend URL
+    FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
 
 settings = Settings() 

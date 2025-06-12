@@ -13,6 +13,7 @@ import EditGroupModal from '@/components/group/EditGroupModal';
 import { Dialog, Transition } from '@headlessui/react';
 import { toast } from 'sonner';
 import DashboardContent from '@/components/group/DashboardContent';
+import { mutate } from 'swr';
 
 interface User {
   user_id: number;
@@ -127,6 +128,14 @@ export default function GroupDetailPage() {
     router.push(`/groups/${groupId}?tab=${tab}`, { scroll: false });
   };
 
+  const handlePaymentCreated = () => {
+    // When a payment is created from another tab, switch to the payments tab
+    // and force a re-fetch of the payments data.
+    const defaultPaymentsUrl = `/groups/${groupId}/payments?skip=0&limit=20&sort_by=created_at&sort_order=desc&filter_type=all`;
+    mutate(defaultPaymentsUrl);
+    handleTabChange('payments');
+  }
+
   const handleGroupUpdated = (updatedGroupData: GroupDetails) => {
     setGroup(updatedGroupData);
   };
@@ -192,7 +201,7 @@ export default function GroupDetailPage() {
             <MembersContent groupId={groupId as string} currentUser={currentUser} />
         </div>
         <div style={{ display: activeTab === 'bills' ? 'block' : 'none' }}>
-            <GroupBills groupId={groupId as string} currentUser={currentUser} />
+            <GroupBills groupId={groupId as string} currentUser={currentUser} onPaymentCreated={handlePaymentCreated} />
         </div>
         <div style={{ display: activeTab === 'payments' ? 'block' : 'none' }}>
             <PaymentsContent groupId={groupId as string} />

@@ -49,7 +49,7 @@ async def send_friend_request(
         await crud.create_notification(
             db=db,
             recipient_user_id=addressee_id,
-            notification_type=NotificationType.FRIEND_REQUEST,
+            notification_type=NotificationType.friend_request,
             message=f"{current_user.full_name or current_user.username} sent you a friend request.",
             related_user_id=requester_id
         )
@@ -57,10 +57,11 @@ async def send_friend_request(
 
         await db.commit()
         
-        await db.refresh(new_friendship)
+        # Re-fetch the object to ensure all relationships are loaded for the response
+        final_friendship = await crud.get_friendship_by_users(db, user_id_1=requester_id, user_id_2=addressee_id)
         
         logger.info(f"User {requester_id} successfully sent friend request to {addressee_id}.")
-        return new_friendship
+        return final_friendship
     except ValueError as e: # Catch self-friendship from crud
         logger.warning(f"Friend request failed: User {requester_id} tried to send a request to themselves. Error: {e}")
         await db.rollback()
@@ -138,21 +139,22 @@ async def accept_friend_request(
     try:
         # Explicitly create the update object with ACCEPTED status
         friendship_update = schemas.FriendshipUpdate(status=schemas.FriendshipStatus.accepted)
-        updated_friendship = await crud.update_friendship(db, db_friendship=friendship, friendship_up=friendship_update)
+        await crud.update_friendship(db, db_friendship=friendship, friendship_up=friendship_update)
 
         # --- Create Notification for the Requester ---
         await crud.create_notification(
             db=db,
             recipient_user_id=requester_id,
-            notification_type=NotificationType.FRIEND_REQUEST_ACCEPTED,
+            notification_type=NotificationType.friend_request_accepted,
             message=f"{current_user.full_name or current_user.username} accepted your friend request.",
             related_user_id=addressee_id
         )
         # --- End Notification ---
 
         await db.commit()
-        await db.refresh(updated_friendship) # Refresh to load relationships
         logger.info(f"User {addressee_id} successfully accepted friend request from {requester_id}.")
+        
+        updated_friendship = await crud.get_friendship_by_users(db=db, user_id_1=requester_id, user_id_2=addressee_id)
         return updated_friendship
     except Exception as e:
         logger.exception(f"Error accepting friend request from {requester_id} for user {addressee_id}: {e}")

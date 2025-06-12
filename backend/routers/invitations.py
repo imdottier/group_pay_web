@@ -80,7 +80,7 @@ async def send_group_invitation(
             await crud.create_notification(
                 db=db,
                 recipient_user_id=invitee_id,
-                notification_type=NotificationType.GROUP_INVITE,
+                notification_type=NotificationType.group_invite,
                 message=f"{current_user.full_name or current_user.username} invited you to join the group '{group.group_name}'.",
                 related_group_id=group_id,
                 related_user_id=inviter_id

@@ -10,11 +10,11 @@ from backend.crud import (
     get_group, is_member_of_group, get_group_member_ids_and_names,
     calculate_group_net_balances, calculate_suggested_settlements,
     get_users_by_ids, get_user_by_user_id, calculate_balance_between_two_users,
-    calculate_all_balances_for_user_in_group
+    calculate_all_balances_for_user_in_group, calculate_group_financial_bar_summary
 )
 import backend.schemas as schemas
 from backend.schemas import (
-    User, GroupBalanceSummary, UserNetBalance, SettlementSummary, SuggestedPayment, UserBase
+    User, GroupBalanceSummary, UserNetBalance, SettlementSummary, SuggestedPayment, UserBase, GroupFinancialBarSummary
 )
 from backend.database import DbSessionDep
 from backend.dependencies import get_current_user, validate_group_member
@@ -38,7 +38,7 @@ router = APIRouter(
     "/balances",
     response_model=GroupBalanceSummary,
 )
-@cache(expire=300)
+# @cache(expire=300) // Temporarily disabled for debugging stale data issue
 async def read_group_balances(
     db: DbSessionDep,
     current_user: User = Depends(get_current_user),
@@ -94,7 +94,7 @@ async def read_group_balances(
         404: {"description": "Group not found"},
     }
 )
-@cache(expire=300)
+# @cache(expire=300) // Temporarily disabled for debugging stale data issue
 async def get_group_settlements(
     db: DbSessionDep,
     current_user: User = Depends(get_current_user),
@@ -294,4 +294,25 @@ async def get_all_user_to_user_balances_in_group(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="An unexpected error occurred while calculating balances with all members.",
+        ) from e
+
+
+@router.get(
+    "/financial_bar_summary",
+    response_model=GroupFinancialBarSummary,
+    summary="Get bar chart financial summary for all users in a group",
+)
+async def get_group_financial_bar_summary(
+    db: DbSessionDep,
+    current_user: User = Depends(get_current_user),
+    group_id: int = Path(...),
+    _=Depends(validate_group_member),
+):
+    try:
+        return await calculate_group_financial_bar_summary(db=db, group_id=group_id)
+    except Exception as e:
+        logger.exception(f"Unexpected error calculating bar summary for group {group_id} requested by user {current_user.user_id}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"An unexpected error occurred",
         ) from e

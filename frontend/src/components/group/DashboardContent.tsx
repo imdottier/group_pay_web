@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import SpendingByCategoryChart from './SpendingByCategoryChart';
 import MonthlySpendingChart from './MonthlySpendingChart';
+import FinancialBarChart from './FinancialBarChart';
 
 interface DashboardContentProps {
   groupId: string;
@@ -11,10 +12,11 @@ interface DashboardContentProps {
 const ANALYTICS_TABS = [
   { id: 'category', name: 'By Category' },
   { id: 'monthly', name: 'Monthly Trend' },
+  { id: 'financial_bar', name: 'Financial Bar Chart' },
   // Add more tabs here as needed
 ];
 
-type AnalyticsTab = 'category' | 'monthly';
+type AnalyticsTab = 'category' | 'monthly' | 'financial_bar';
 
 const DashboardContent = ({ groupId }: DashboardContentProps) => {
   // Separate state for each chart
@@ -110,6 +112,12 @@ const DashboardContent = ({ groupId }: DashboardContentProps) => {
             </div>
           </div>
           <MonthlySpendingChart groupId={groupId} year={monthlyYear} />
+        </div>
+      )}
+      {activeTab === 'financial_bar' && (
+        <div>
+          <h3 className="text-lg font-semibold text-gray-700 mb-4">Group Financial Bar Chart</h3>
+          <FinancialBarChart groupId={groupId} />
         </div>
       )}
     </div>

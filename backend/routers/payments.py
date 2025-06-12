@@ -221,7 +221,7 @@ async def read_payment(
     "/",
     response_model=list[Payment],
 )
-@cache(expire=300)
+# @cache(expire=300) // Temporarily disabled for debugging stale data issue
 async def read_group_payments(
     db: DbSessionDep,
     current_user: User = Depends(get_current_user),

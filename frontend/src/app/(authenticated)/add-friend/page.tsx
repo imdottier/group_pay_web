@@ -5,6 +5,7 @@ import api from '@/lib/api';
 import { UserPlusIcon, MagnifyingGlassIcon } from '@heroicons/react/24/outline';
 import PendingRequestsModal from '@/components/friends/PendingRequestsModal';
 import { User, Friendship } from '@/types';
+import { toast } from 'sonner';
 
 const AddFriendPage = () => {
   const [searchQuery, setSearchQuery] = useState('');
@@ -94,12 +95,20 @@ const AddFriendPage = () => {
   const handleAddFriend = async (addresseeId: number) => {
     setLoading(prev => ({ ...prev, add: true }));
     try {
-      await api.post('/friends/request', { addressee_id: addresseeId });
-      alert('Friend request sent!');
-      setSearchQuery('');
-      setSearchResults([]);
+      const response = await api.post('/friends/request', { addressee_id: addresseeId });
+      if (response.status === 201 || response.status === 200) {
+        toast.success('Friend request sent successfully!');
+        setSearchQuery('');
+        setSearchResults([]);
+        // Optionally, refetch sent requests to update the UI in real-time
+        api.get<Friendship[]>('/friends/pending/sent').then(res => setSentRequests(res.data));
+      } else {
+        // Handle non-2xx success responses if your API uses them
+        toast.warning(`Request sent, but received an unexpected status: ${response.status}`);
+      }
     } catch (err: any) {
-      alert(`Error: ${err.response?.data?.detail || 'Could not send request.'}`);
+      // The API interceptor might handle global errors like 401, but we handle specific errors here.
+      toast.error(err.response?.data?.detail || 'Could not send friend request. Please try again.');
     } finally {
       setLoading(prev => ({ ...prev, add: false }));
     }
@@ -148,10 +157,19 @@ const AddFriendPage = () => {
           {loading.search && <p className="mt-2 text-gray-600">Searching...</p>}
           <div className="mt-2 space-y-2">
             {searchResults.map((user) => (
-              <div key={user.user_id} className="flex items-center justify-between p-2 hover:bg-gray-50 rounded-md">
-                <div>
-                  <p className="font-semibold text-gray-900">{user.username}</p>
-                  <p className="text-sm text-gray-600">{user.email}</p>
+              <div key={user.user_id} className="flex items-center justify-between p-3 bg-gray-50 hover:bg-gray-100 rounded-md">
+                <div className="flex items-center space-x-3">
+                  {user.profile_image_url ? (
+                    <img src={user.profile_image_url} alt={user.username} className="w-10 h-10 rounded-full object-cover" />
+                  ) : (
+                    <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center">
+                      <span className="text-gray-500 font-semibold">{user.username.charAt(0).toUpperCase()}</span>
+                    </div>
+                  )}
+                  <div>
+                    <p className="font-semibold text-gray-900">{user.username}</p>
+                    <p className="text-sm text-gray-600">{user.email}</p>
+                  </div>
                 </div>
                 <button
                   onClick={() => handleAddFriend(user.user_id)}
@@ -172,17 +190,26 @@ const AddFriendPage = () => {
           {loading.friends ? (
             <p className="text-gray-800">Loading friends...</p>
           ) : friends.length > 0 && currentUser ? (
-            <ul className="divide-y divide-gray-200">
+            <ul className="space-y-2">
               {friends.map(friendship => {
                   const friendUser = friendship.requester.user_id === currentUser.user_id 
                     ? friendship.addressee 
                     : friendship.requester;
                   
                   return (
-                    <li key={friendUser.user_id} className="py-3 flex justify-between items-center">
-                      <div>
-                        <span className="font-medium text-gray-900">{friendUser.username}</span>
-                        <p className="text-sm text-gray-600">{friendUser.email}</p>
+                    <li key={friendUser.user_id} className="p-3 bg-gray-50 rounded-md flex justify-between items-center hover:bg-gray-100">
+                      <div className="flex items-center space-x-3">
+                        {friendUser.profile_image_url ? (
+                          <img src={friendUser.profile_image_url} alt={friendUser.username} className="w-10 h-10 rounded-full object-cover" />
+                        ) : (
+                          <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center">
+                            <span className="text-gray-500 font-semibold">{friendUser.username.charAt(0).toUpperCase()}</span>
+                          </div>
+                        )}
+                        <div>
+                          <span className="font-medium text-gray-900">{friendUser.username}</span>
+                          <p className="text-sm text-gray-600">{friendUser.email}</p>
+                        </div>
                       </div>
                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 capitalize">
                         {friendship.status}

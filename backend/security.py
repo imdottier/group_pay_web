@@ -13,6 +13,12 @@ SECRET_KEY = os.getenv("SECRET_KEY")
 ALGORITHM = os.getenv("ALGORITHM")
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 30))
 
+# Google OAuth Configuration
+GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
+GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET")
+# This should be the full URL of your frontend application
+FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000") 
+
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 

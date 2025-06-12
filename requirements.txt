@@ -37,3 +37,9 @@ google-cloud-storage==2.16.0
 authlib==1.2.1
 websockets==12.0
 google-generativeai==0.7.1
+Authlib
+google-auth-oauthlib
+google-api-python-client
+httpx
+itsdangerous
+aiomysql

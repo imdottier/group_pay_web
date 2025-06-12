@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, status, HTTPException
+from fastapi import APIRouter, Depends, status, HTTPException, Request
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.exc import IntegrityError
@@ -6,20 +6,24 @@ from typing import Annotated
 from datetime import timedelta
 from backend.dependencies import get_current_user
 import logging
+from fastapi.responses import RedirectResponse
 
 from jose import jwt, JWTError
 
 from backend.crud import (
     get_user_by_email, get_user_by_username,
-    get_user_by_user_id, create_user, authenticate_user
+    get_user_by_user_id, create_user, authenticate_user,
+    create_user_from_google
 ) 
 from backend.schemas import User, UserCreate, Token, TokenData
 from backend.security import (
     create_access_token,
     oauth2_scheme, 
     SECRET_KEY, ALGORITHM, ACCESS_TOKEN_EXPIRE_MINUTES,
+    GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, FRONTEND_URL
 )
 from backend.database import DbSessionDep
+from authlib.integrations.starlette_client import OAuth
 
 logger = logging.getLogger(__name__) 
 
@@ -27,8 +31,77 @@ router = APIRouter(
     tags=["Authentication"]
 )
 
+# --- OAuth Client Setup ---
+oauth = OAuth()
+oauth.register(
+    name='google',
+    client_id=GOOGLE_CLIENT_ID,
+    client_secret=GOOGLE_CLIENT_SECRET,
+    server_metadata_url='https://accounts.google.com/.well-known/openid-configuration',
+    client_kwargs={
+        'scope': 'openid email profile'
+    }
+)
+# --------------------------
 
-@router.post("/register", response_model=User, status_code=status.HTTP_201_CREATED)
+
+@router.get('/login/google')
+async def login_google(request: Request):
+    """Redirects the user to Google's authentication page."""
+    redirect_uri = request.url_for('auth_google_callback')
+    return await oauth.google.authorize_redirect(request, redirect_uri, prompt='select_account')
+
+
+@router.get('/auth/google/callback')
+async def auth_google_callback(request: Request, db: DbSessionDep):
+    """
+    Handles the callback from Google after user authentication.
+    Creates or retrieves the user, generates a JWT, and redirects to the frontend.
+    """
+    try:
+        token = await oauth.google.authorize_access_token(request)
+        user_info = token.get('userinfo')
+        if not user_info:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Could not fetch user info from Google"
+            )
+
+        email = user_info.get('email')
+        if not email:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="No email found in Google profile"
+            )
+
+        # Check if user exists, or create them
+        db_user = await get_user_by_email(db, email=email)
+        if not db_user:
+            logger.info(f"New user from Google login: {email}. Creating account.")
+            db_user = await create_user_from_google(db, user_info=user_info)
+        else:
+            logger.info(f"Existing user logged in with Google: {email}")
+
+        # Create access token for the user
+        access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+        access_token = create_access_token(
+            data={"sub": str(db_user.user_id)}, expires_delta=access_token_expires
+        )
+        
+        # Redirect to the frontend with the token
+        # The frontend will be responsible for parsing this token
+        response = RedirectResponse(url=f"{FRONTEND_URL}/auth/callback?token={access_token}")
+        return response
+
+    except Exception as e:
+        logger.exception("Error during Google OAuth callback.")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An error occurred during Google authentication."
+        ) from e
+
+
+@router.post("/auth/register", response_model=User, status_code=status.HTTP_201_CREATED)
 async def register_user(user_in: UserCreate, db: DbSessionDep):
     db_user_email = await get_user_by_email(db, email=user_in.email)
     if db_user_email:
@@ -75,7 +148,7 @@ async def register_user(user_in: UserCreate, db: DbSessionDep):
         ) from e
 
 
-@router.post("/login/token", response_model=Token)
+@router.post("/auth/login/token", response_model=Token)
 async def login_for_access_token(
     form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
     db: DbSessionDep,

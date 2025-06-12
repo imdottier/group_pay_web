@@ -1,5 +1,6 @@
 from fastapi import FastAPI, Request, Depends
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.sessions import SessionMiddleware
 from contextlib import asynccontextmanager
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
@@ -33,6 +34,7 @@ logging.basicConfig(
 )
 # Quieten down noisy libraries
 logging.getLogger("python_multipart").setLevel(logging.WARNING)
+logging.getLogger("uvicorn.access").setLevel(logging.INFO)
 
 logger = logging.getLogger(__name__)
 
@@ -76,8 +78,8 @@ app = FastAPI(
 
 # --- CORS Middleware Configuration ---
 origins = [
-    "http://localhost:3000",  # Your frontend origin
-    # Add other origins if needed, e.g., your production frontend URL
+    settings.FRONTEND_URL,
+    "http://localhost:3000",
 ]
 
 app.add_middleware(
@@ -86,6 +88,13 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+)
+
+# Add Session Middleware for OAuth state management
+# IMPORTANT: This secret_key should be the same as your JWT secret
+app.add_middleware(
+    SessionMiddleware,
+    secret_key=settings.SECRET_KEY 
 )
 # -----------------------------------
 
@@ -109,7 +118,6 @@ async def rate_limit_general(request: Request):
 # --- Include Routers with specific rate limits ---
 app.include_router(
     auth.router,
-    prefix="/auth",
     tags=["Authentication"],
     dependencies=[Depends(rate_limit_auth)]
 )

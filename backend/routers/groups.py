@@ -277,7 +277,6 @@ async def add_member_to_group(
         404: {"description": "Group not found"},
     },
 )
-@cache(expire=300)
 async def read_group_members(
     db: DbSessionDep,
     current_user: User = Depends(get_current_user),
@@ -497,7 +496,6 @@ async def leave_group(
         404: {"description": "Group not found"},
     }
 )
-@cache(expire=300)
 async def get_group_activity_feed_from_audit(
     db: DbSessionDep,
     current_user: models.User = Depends(get_current_user),
@@ -648,7 +646,6 @@ async def edit_group_details(
         404: {"description": "Group not found"},
     },
 )
-@cache(expire=300)
 async def get_pending_group_invitations(
     group_id: int,
     db: DbSessionDep,
@@ -673,7 +670,6 @@ async def get_pending_group_invitations(
 
 
 @router.get("/{group_id}/user-role", response_model=UserRoleResponse)
-@cache(expire=300)
 async def get_user_role_endpoint(
     group_id: int,
     db: DbSessionDep,

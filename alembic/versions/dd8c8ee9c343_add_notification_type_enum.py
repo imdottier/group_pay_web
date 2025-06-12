@@ -19,20 +19,20 @@ depends_on: Union[str, Sequence[str], None] = None
 
 # Define the old and new enum types
 old_notification_types = (
-    'GROUP_INVITE', 
-    'NEW_BILL', 
-    'BILL_UPDATE', 
-    'MEMBER_ADDED_TO_GROUP'
+    'group_invite', 
+    'new_bill', 
+    'bill_update', 
+    'member_added_to_group'
 )
 new_notification_types = (
-    'GROUP_INVITE', 
-    'NEW_BILL', 
-    'BILL_UPDATE', 
-    'MEMBER_ADDED_TO_GROUP', 
-    'FRIEND_REQUEST',
-    'FRIEND_REQUEST_ACCEPTED',
-    'BILL_PAYMENT_REMINDER',
-    'TRANSACTION_REMINDER'
+    'group_invite', 
+    'new_bill', 
+    'bill_update', 
+    'member_added_to_group', 
+    'friend_request',
+    'friend_request_accepted',
+    'bill_payment_reminder',
+    'transaction_reminder'
 )
 
 old_enum = sa.Enum(*old_notification_types, name='notificationtype')
