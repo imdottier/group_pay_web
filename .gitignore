@@ -1,0 +1,74 @@
+# Byte-compiled / cache
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Virtual environment
+myenv/
+venv/
+.env
+.env.*
+
+# VS Code settings
+.vscode/
+
+# Alembic cache
+alembic/versions/
+
+# Node modules & frontend artifacts
+node_modules/
+dist/
+build/
+*.log
+package-lock.json
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Python packaging
+*.egg-info/
+*.egg
+.eggs/
+
+# SQLite or test DBs (if not using migrations)
+*.db
+
+# Misc
+*.bak
+*.swp
+
+# Next.js specific
+.next/
+out/
+.env*.local
+
+# Frontend development
+frontend/.next/
+frontend/out/
+frontend/node_modules/
+frontend/.env*.local
+frontend/build
+frontend/.vercel
+frontend/*.tsbuildinfo
+frontend/next-env.d.ts
+
+# Coverage directories
+coverage/
+.nyc_output
+
+# Debug logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Local Netlify folder
+.netlify
+
+# Environment variables
+.env
+*.env
+.env.*
+
+# Secrets
+*.json 
