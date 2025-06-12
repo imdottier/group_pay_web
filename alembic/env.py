@@ -10,6 +10,27 @@ from alembic import context
 # Load environment variables
 load_dotenv()
 
+# --- START Cloud SQL Configuration ---
+# Get DB credentials from environment variables
+db_user = os.getenv("DB_USER")
+db_password = os.getenv("DB_PASSWORD")
+db_name = os.getenv("DB_NAME")
+cloud_sql_connection_name = os.getenv("CLOUD_SQL_CONNECTION_NAME") # e.g. <project>:<region>:<instance>
+
+db_url = None
+# Check if all required environment variables for Cloud SQL are set
+if all([db_user, db_password, db_name, cloud_sql_connection_name]):
+    # Construct the Cloud SQL connection string for a Unix socket
+    db_url = (
+        f"mysql+pymysql://{db_user}:{db_password}@/{db_name}"
+        f"?unix_socket=/cloudsql/{cloud_sql_connection_name}"
+    )
+else:
+    # Fallback to the original URL from env var for local development or other environments
+    db_url = os.getenv("SYNC_SQLALCHEMY_DATABASE_URL")
+# --- END Cloud SQL Configuration ---
+
+
 # Import your Base from your database setup
 from backend.database import Base
 # Import your models module so Base knows about the tables
@@ -20,8 +41,14 @@ import backend.models as models # Or specific models if preferred: from models i
 # access to the values within the .ini file in use.
 config = context.config
 
-# Override sqlalchemy.url with environment variable
-config.set_main_option("sqlalchemy.url", os.getenv("SYNC_SQLALCHEMY_DATABASE_URL"))
+# Override sqlalchemy.url with our constructed URL, if it exists
+if db_url:
+    config.set_main_option("sqlalchemy.url", db_url)
+else:
+    # Handle case where no database URL is available
+    # This will likely cause an error downstream, but it's better to be explicit.
+    print("Error: Database URL not configured. Please set either SYNC_SQLALCHEMY_DATABASE_URL or Cloud SQL connection variables.")
+
 
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.
@@ -71,13 +98,9 @@ def run_migrations_online() -> None:
     and associate a connection with the context.
 
     """
-    configuration = config.get_section(config.config_ini_section)
-    
-    # Ensure we're using the environment variable URL
-    configuration["sqlalchemy.url"] = os.getenv("SYNC_SQLALCHEMY_DATABASE_URL")
-    
+    # This simplified version uses the 'sqlalchemy.url' we already set in the config object
     connectable = engine_from_config(
-        configuration,
+        config.get_section(config.config_ini_section, {}),
         prefix="sqlalchemy.",
         poolclass=pool.NullPool,
     )

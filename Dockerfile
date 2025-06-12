@@ -1,6 +1,6 @@
 # Use an official lightweight Python image.
 # https://hub.docker.com/_/python
-FROM python:3.12-slim
+FROM python:3.12.5-slim
 
 # Set environment variables to make Python run better in a container
 ENV PYTHONDONTWRITEBYTECODE 1
@@ -17,7 +17,6 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY ./backend /app/backend
 COPY ./alembic /app/alembic
 COPY alembic.ini .
-COPY test_db_connection.py .
 
 # Expose the port Cloud Run will use
 EXPOSE 8080
