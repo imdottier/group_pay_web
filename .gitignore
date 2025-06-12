@@ -13,7 +13,7 @@ venv/
 .vscode/
 
 # Alembic cache
-alembic/versions/
+
 
 # Node modules & frontend artifacts
 node_modules/

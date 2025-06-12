@@ -17,16 +17,6 @@ db_password = os.getenv("DB_PASSWORD")
 db_name = os.getenv("DB_NAME")
 cloud_sql_connection_name = os.getenv("CLOUD_SQL_CONNECTION_NAME") # e.g. <project>:<region>:<instance>
 
-# --- DEBUGGING: Print environment variables ---
-print("--- Alembic Debug Info ---")
-print(f"DB_USER: {db_user}")
-print(f"DB_PASSWORD: {'*' * len(db_password) if db_password else None}")
-print(f"DB_NAME: {db_name}")
-print(f"CLOUD_SQL_CONNECTION_NAME: {cloud_sql_connection_name}")
-print(f"SYNC_SQLALCHEMY_DATABASE_URL: {os.getenv('SYNC_SQLALCHEMY_DATABASE_URL')}")
-print("--------------------------")
-
-
 db_url = None
 # Check if all required environment variables for Cloud SQL are set
 if all([db_user, db_password, db_name, cloud_sql_connection_name]):
@@ -35,11 +25,9 @@ if all([db_user, db_password, db_name, cloud_sql_connection_name]):
         f"mysql+pymysql://{db_user}:{db_password}@/{db_name}"
         f"?unix_socket=/cloudsql/{cloud_sql_connection_name}"
     )
-    print(f"Constructed Cloud SQL URL: {db_url.replace(db_password, '****') if db_password else db_url}")
 else:
     # Fallback to the original URL from env var for local development or other environments
     db_url = os.getenv("SYNC_SQLALCHEMY_DATABASE_URL")
-    print(f"Using fallback URL: {db_url}")
 # --- END Cloud SQL Configuration ---
 
 
@@ -53,14 +41,15 @@ import backend.models as models # Or specific models if preferred: from models i
 # access to the values within the .ini file in use.
 config = context.config
 
-print(f"Final sqlalchemy.url to be used: {db_url}")
 # Override sqlalchemy.url with our constructed URL, if it exists
 if db_url:
     config.set_main_option("sqlalchemy.url", db_url)
 else:
     # Handle case where no database URL is available
     # This will likely cause an error downstream, but it's better to be explicit.
-    print("Error: Database URL not configured. Please set either SYNC_SQLALCHEMY_DATABASE_URL or Cloud SQL connection variables.")
+    print("\nERROR: Database URL not configured.\n"
+          "Please set environment variables for Cloud SQL (DB_USER, DB_PASSWORD, DB_NAME, CLOUD_SQL_CONNECTION_NAME)\n"
+          "or set SYNC_SQLALCHEMY_DATABASE_URL for other environments.\n")
 
 
 # Interpret the config file for Python logging.
