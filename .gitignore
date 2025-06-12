@@ -20,7 +20,6 @@ node_modules/
 dist/
 build/
 *.log
-package-lock.json
 
 # OS files
 .DS_Store
@@ -43,16 +42,6 @@ Thumbs.db
 out/
 .env*.local
 
-# Frontend development
-frontend/.next/
-frontend/out/
-frontend/node_modules/
-frontend/.env*.local
-frontend/build
-frontend/.vercel
-frontend/*.tsbuildinfo
-frontend/next-env.d.ts
-
 # Coverage directories
 coverage/
 .nyc_output
@@ -69,6 +58,8 @@ yarn-error.log*
 .env
 *.env
 .env.*
+
+!.env.example
 
 # Secrets
 *.json 
