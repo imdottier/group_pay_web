@@ -3,6 +3,7 @@ import uuid
 from fastapi import UploadFile, HTTPException, status
 from google.cloud import storage
 from google.api_core import exceptions as google_exceptions
+from google.auth.exceptions import DefaultCredentialsError
 import logging
 
 # Configure logging
@@ -22,7 +23,7 @@ except KeyError:
 try:
     storage_client = storage.Client()
     bucket = storage_client.bucket(GCS_BUCKET_NAME)
-except google_exceptions.DefaultCredentialsError:
+except DefaultCredentialsError:
     logger.error("GCS authentication failed. Check GOOGLE_APPLICATION_CREDENTIALS.")
     # This error is also critical.
     raise ImportError("Could not authenticate with Google Cloud Storage.") from None
